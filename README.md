@@ -59,3 +59,4 @@ Tout est stocké localement (SQLite). Aucun serveur nécessaire pour le MVP.
   est déjà là pour le multi-devises plus tard.
 - Alertes affichées dans l'app (pas de notification push pour l'instant).
 - Google Play restreint l'accès aux SMS : teste par APK avant de publier.
+# Andro
