@@ -16,6 +16,8 @@ dependencies:
   sqflite_common_ffi: ^2.4.5
   sqflite_common_ffi_web: ^1.2.0
   path_provider: ^2.1.6
+  share_plus: ^10.1.4
+  file_picker: ^10.3.7
 
 dev_dependencies:
   flutter_test:

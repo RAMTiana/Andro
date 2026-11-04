@@ -10,7 +10,7 @@ import 'db_factory.dart'
 class AppDb {
   static Database? _db;
 
-  static const List<String> _schema = [
+  static const List<String> schema = [
     '''CREATE TABLE accounts(
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -73,7 +73,7 @@ class AppDb {
       path,
       version: 1,
       onCreate: (db, version) async {
-        for (final stmt in _schema) {
+        for (final stmt in schema) {
           await db.execute(stmt);
         }
       },

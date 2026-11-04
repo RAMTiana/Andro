@@ -1,22 +1,17 @@
 {
-  "_comment": "EXEMPLES A ADAPTER : copie quelques vrais SMS de tes operateurs, puis ajuste 'senders' (nom de l'expediteur) et 'pattern' (le groupe 1 = le montant).",
-  "version": 1,
+  "_comment": "Regles SMS. Les 6 premieres viennent de vrais SMS (Orange Money, MVola). Les suivantes sont generiques : a remplacer par de vrais exemples. Groupe 1 = montant.",
+  "version": 2,
   "rules": [
-    {"carrier": "Orange Money", "senders": [], "direction": "out", "currency": "MGA", "decimal": true,
-      "pattern": "^(?=.*Orange Money).*?paiement[^0-9]{0,60}?([0-9]+(?:[.,][0-9]+)?)\\s*Ar",
-      "fee_pattern": "Frais\\s*:?\\s*([0-9]+(?:[.,][0-9]+)?)\\s*Ar",
-      "note_pattern": "sur le site\\s+([^\\s.]+)"},
-    {"carrier": "MVola", "senders": ["MVola"], "direction": "out", "currency": "MGA",
-      "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
-    {"carrier": "MVola", "senders": ["MVola"], "direction": "in", "currency": "MGA",
-      "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
-    {"carrier": "Orange Money", "senders": ["OrangeMoney", "Orange Money"], "direction": "out", "currency": "MGA",
-      "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
-    {"carrier": "Orange Money", "senders": ["OrangeMoney", "Orange Money"], "direction": "in", "currency": "MGA",
-      "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
-    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "out", "currency": "MGA",
-      "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
-    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "in", "currency": "MGA",
-      "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"}
+    {"carrier": "Orange Money", "senders": [], "direction": "out", "currency": "MGA", "decimal": true, "pattern": "^(?=.*Orange Money).*?paiement[^0-9]{0,60}?([0-9]+(?:[.,][0-9]+)?)\\s*Ar", "fee_pattern": "Frais\\s*:?\\s*([0-9]+(?:[.,][0-9]+)?)\\s*Ar", "note_pattern": "sur le site\\s+([^\\s.]+)"},
+    {"carrier": "Orange Money", "senders": [], "direction": "out", "currency": "MGA", "decimal": true, "pattern": "^(?=.*Orange Money).*?\\bretrait\\b[^0-9]{0,40}?([0-9]+(?:[.,][0-9]+)?)\\s*Ar", "fee_pattern": "Frais\\s*:?\\s*([0-9]+(?:[.,][0-9]+)?)\\s*Ar"},
+    {"carrier": "Orange Money", "senders": [], "direction": "in", "currency": "MGA", "decimal": true, "pattern": "^(?=.*Orange Money).*?\\bd[eé]p[oô]t\\b[^0-9]{0,40}?([0-9]+(?:[.,][0-9]+)?)\\s*Ar"},
+    {"carrier": "Orange Money", "senders": [], "direction": "in", "currency": "MGA", "decimal": true, "pattern": "^(?=.*Orange Money).*?re[cç]u\\s+un\\s+transfert[^0-9]{0,40}?([0-9]+(?:[.,][0-9]+)?)\\s*Ar"},
+    {"carrier": "MVola", "senders": [], "direction": "in", "currency": "MGA", "pattern": "^\\s*([0-9][0-9\\s]*[0-9])\\s*Ar\\s+re[cç]u\\s+de\\b"},
+    {"carrier": "MVola", "senders": [], "direction": "out", "currency": "MGA", "pattern": "^(?=.*MVola).*?\\bachat de cr[eé]dit\\b[^0-9]{0,60}?([0-9]+(?:\\s[0-9]{3})*)\\s*Ar"},
+    {"carrier": "MVola", "senders": ["MVola"], "direction": "out", "currency": "MGA", "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "MVola", "senders": ["MVola"], "direction": "in", "currency": "MGA", "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Orange Money", "senders": ["OrangeMoney", "Orange Money"], "direction": "out", "currency": "MGA", "pattern": "(?:envoy|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "out", "currency": "MGA", "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "in", "currency": "MGA", "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"}
   ]
 }

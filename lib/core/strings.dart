@@ -34,6 +34,21 @@ class S {
       'account': 'Compte',
       'note': 'Note (optionnel)',
       'save': 'Enregistrer',
+      'backup_title': 'Sauvegarde',
+      'backup_hint':
+          "Exporte toutes tes données dans un fichier (à garder sur Drive, "
+              "WhatsApp, e-mail…). Si tu changes de téléphone ou perds celui-ci, "
+              "tu pourras tout restaurer.",
+      'backup_export': 'Exporter une sauvegarde',
+      'backup_import': 'Restaurer une sauvegarde',
+      'backup_confirm_title': 'Remplacer toutes les données ?',
+      'backup_confirm_body':
+          "Les données actuelles de l'application seront remplacées par celles "
+              "du fichier. Cette action est irréversible.",
+      'backup_restore_btn': 'Remplacer',
+      'backup_restored': 'Sauvegarde restaurée.',
+      'backup_invalid': "Ce fichier n'est pas une sauvegarde valide.",
+      'backup_error': 'Échec. Réessaie.',
       'cancel': 'Annuler',
       'delete': 'Supprimer',
       'transactions': 'Transactions',
@@ -129,6 +144,21 @@ class S {
       'account': 'Account',
       'note': 'Note (optional)',
       'save': 'Save',
+      'backup_title': 'Backup',
+      'backup_hint':
+          "Export all your data to a file (keep it on Drive, WhatsApp, "
+              "email…). If you change or lose your phone, you can restore "
+              "everything.",
+      'backup_export': 'Export a backup',
+      'backup_import': 'Restore a backup',
+      'backup_confirm_title': 'Replace all data?',
+      'backup_confirm_body':
+          "The app's current data will be replaced by the file's content. "
+              "This cannot be undone.",
+      'backup_restore_btn': 'Replace',
+      'backup_restored': 'Backup restored.',
+      'backup_invalid': 'This file is not a valid backup.',
+      'backup_error': 'Failed. Please try again.',
       'cancel': 'Cancel',
       'delete': 'Delete',
       'transactions': 'Transactions',

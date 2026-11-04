@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/currencies.dart';
 import '../core/strings.dart';
+import '../data/backup.dart';
 import '../data/db.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
@@ -141,6 +142,18 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteTx(String id) async {
     await repo.softDeleteTx(id);
+    await refresh();
+  }
+
+  // ---- Sauvegarde / restauration ----
+  Future<String> exportBackup() => BackupService.export(repo.db);
+
+  /// Remplace toutes les données par celles du fichier. Lance une
+  /// [BackupException] si le fichier est invalide (rien n'est modifié).
+  Future<void> restoreBackup(String json) async {
+    await BackupService.restore(repo.db, json);
+    settings = await repo.loadSettings();
+    if (settings != null) S.setLang(settings!.locale);
     await refresh();
   }
 

@@ -6,6 +6,7 @@ import '../core/money.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
 import '../state/app_state.dart';
+import 'backup_screen.dart';
 import 'change_currency_screen.dart';
 import 'planned_items_screen.dart';
 
@@ -121,6 +122,14 @@ class _BudgetSettingsScreenState extends State<BudgetSettingsScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const ChangeCurrencyScreen())),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.backup_outlined),
+            title: Text(S.t('backup_title')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const BackupScreen())),
           ),
           const SizedBox(height: 12),
           Text(S.t('language')),
