@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../core/strings.dart';
 import 'home_screen.dart';
+import 'income_screen.dart';
 import 'stats_screen.dart';
 import 'transactions_screen.dart';
 
-/// Coque principale : navigation en bas (Accueil, Transactions, Stats).
+/// Coque principale : navigation en bas (Accueil, Transactions, Revenus, Stats).
 /// Les réglages et « À valider » restent accessibles depuis l'accueil.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -25,6 +26,7 @@ class _MainShellState extends State<MainShell> {
         children: const [
           HomeScreen(),
           TransactionsScreen(),
+          IncomeScreen(),
           StatsScreen(),
         ],
       ),
@@ -40,6 +42,10 @@ class _MainShellState extends State<MainShell> {
               icon: const Icon(Icons.receipt_long_outlined),
               selectedIcon: const Icon(Icons.receipt_long),
               label: S.t('nav_transactions')),
+          NavigationDestination(
+              icon: const Icon(Icons.savings_outlined),
+              selectedIcon: const Icon(Icons.savings),
+              label: S.t('nav_income')),
           NavigationDestination(
               icon: const Icon(Icons.insights_outlined),
               selectedIcon: const Icon(Icons.insights),

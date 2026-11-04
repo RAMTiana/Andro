@@ -28,6 +28,8 @@ class AppState extends ChangeNotifier {
   int balance = 0;
   int spentToday = 0;
   int monthSpent = 0;
+  int monthIncome = 0;
+  Map<String, int> monthIncomeByCategory = {};
   Map<String, int> monthByCategory = {};
   List<int> last7Days = []; // du plus ancien (J-6) à aujourd'hui
   DailyBudget? daily;
@@ -67,6 +69,8 @@ class AppState extends ChangeNotifier {
       final monthEnd = DateTime(now.year, now.month + 1, 1);
       monthByCategory = await repo.spentByCategory(monthStart, monthEnd);
       monthSpent = monthByCategory.values.fold(0, (a, b) => a + b);
+      monthIncomeByCategory = await repo.earnedByCategory(monthStart, monthEnd);
+      monthIncome = monthIncomeByCategory.values.fold(0, (a, b) => a + b);
       last7Days = [
         for (var i = 6; i >= 0; i--)
           await repo.spentBetween(DateTime(now.year, now.month, now.day - i),

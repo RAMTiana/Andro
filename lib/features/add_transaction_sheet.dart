@@ -7,17 +7,20 @@ import '../core/strings.dart';
 import '../data/models.dart';
 import '../state/app_state.dart';
 
-Future<void> showAddTransactionSheet(BuildContext context) {
+Future<void> showAddTransactionSheet(BuildContext context,
+    {Direction initialDirection = Direction.outflow}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => const AddTransactionSheet(),
+    builder: (_) => AddTransactionSheet(initialDirection: initialDirection),
   );
 }
 
 class AddTransactionSheet extends StatefulWidget {
-  const AddTransactionSheet({super.key});
+  final Direction initialDirection;
+  const AddTransactionSheet(
+      {super.key, this.initialDirection = Direction.outflow});
 
   @override
   State<AddTransactionSheet> createState() => _AddTransactionSheetState();
@@ -26,7 +29,7 @@ class AddTransactionSheet extends StatefulWidget {
 class _AddTransactionSheetState extends State<AddTransactionSheet> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
-  Direction _dir = Direction.outflow;
+  late Direction _dir = widget.initialDirection;
   String? _categoryId;
   String? _accountId;
   String? _error;

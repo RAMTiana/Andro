@@ -105,6 +105,21 @@ class Repository {
     };
   }
 
+  /// Entrées validées par catégorie entre [from] et [to] (clé '' = sans catégorie).
+  Future<Map<String, int>> earnedByCategory(DateTime from, DateTime to) async {
+    final rows = await db.rawQuery(
+      "SELECT category_id, SUM(amount) AS total FROM transactions "
+      "WHERE deleted_at IS NULL AND needs_review = 0 AND direction = 'in' "
+      "AND occurred_at >= ? AND occurred_at < ? GROUP BY category_id",
+      [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
+    );
+    return {
+      for (final row in rows)
+        (row['category_id'] as String? ?? ''):
+            (row['total'] as num?)?.toInt() ?? 0,
+    };
+  }
+
   Future<void> setCategoryLimit(String id, int? amount) => db.update(
         'categories',
         {'limit_amount': amount, 'updated_at': _now()},
