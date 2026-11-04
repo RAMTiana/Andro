@@ -118,7 +118,14 @@ class _PendingCard extends StatelessWidget {
               spacing: 8,
               children: [
                 for (final c in cats)
+                  // catégorie devinée automatiquement = puce mise en avant
                   ActionChip(
+                    avatar: c.id == tx.categoryId
+                        ? const Icon(Icons.auto_awesome, size: 16)
+                        : null,
+                    backgroundColor: c.id == tx.categoryId
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : null,
                     label: Text(c.name),
                     onPressed: () => st.confirmTx(tx, categoryId: c.id),
                   ),

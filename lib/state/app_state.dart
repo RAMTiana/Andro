@@ -28,9 +28,9 @@ class AppState extends ChangeNotifier {
   int balance = 0;
   int spentToday = 0;
   int monthSpent = 0;
+  Map<String, int> monthByCategory = {};
   int monthIncome = 0;
   Map<String, int> monthIncomeByCategory = {};
-  Map<String, int> monthByCategory = {};
   List<int> last7Days = []; // du plus ancien (J-6) à aujourd'hui
   DailyBudget? daily;
 
@@ -64,18 +64,15 @@ class AppState extends ChangeNotifier {
       recent = await repo.listTx(limit: 200, review: false);
       pending = await repo.listTx(limit: 500, review: true);
       balance = await repo.balance();
-      spentToday = await repo.spentBetween(start, end);
       final monthStart = DateTime(now.year, now.month, 1);
       final monthEnd = DateTime(now.year, now.month + 1, 1);
       monthByCategory = await repo.spentByCategory(monthStart, monthEnd);
       monthSpent = monthByCategory.values.fold(0, (a, b) => a + b);
-      monthIncomeByCategory = await repo.earnedByCategory(monthStart, monthEnd);
+      monthIncomeByCategory = await repo.incomeByCategory(monthStart, monthEnd);
       monthIncome = monthIncomeByCategory.values.fold(0, (a, b) => a + b);
-      last7Days = [
-        for (var i = 6; i >= 0; i--)
-          await repo.spentBetween(DateTime(now.year, now.month, now.day - i),
-              DateTime(now.year, now.month, now.day - i + 1)),
-      ];
+      // 1 requête pour les 7 jours (avant : 7 requêtes + 1 pour aujourd'hui)
+      last7Days = await repo.spentPerDay(now, 7);
+      spentToday = last7Days.last;
       daily = DailyBudgetCalculator.compute(
         today: now,
         balance: balance,
@@ -154,6 +151,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> confirmTx(TxRec t, {String? categoryId}) async {
     await repo.updateTx(t.copyWith(categoryId: categoryId, needsReview: false));
+    // Retient la catégorie pour ce libellé : les prochains SMS du même
+    // commerçant / contact seront pré-classés automatiquement.
+    final cat = categoryId ?? t.categoryId;
+    if (cat != null && t.source == 'sms') {
+      await repo.rememberMerchant(t.note, cat);
+    }
     await refresh();
   }
 
@@ -229,9 +232,10 @@ class AppState extends ChangeNotifier {
           _parser!.parse(sender: m.sender, body: m.body, date: m.date);
       if (p == null || p.currency != s.homeCurrency) continue;
       if (!seen.add(p.hash)) continue;
-      if (await repo.hasSmsHash(p.hash)) continue;
       found.add(p);
     }
+    final known = await repo.existingSmsHashes(found.map((p) => p.hash));
+    found.removeWhere((p) => known.contains(p.hash));
     found.sort((a, b) => b.date.compareTo(a.date));
     return found;
   }
@@ -258,9 +262,10 @@ class AppState extends ChangeNotifier {
       );
       if (p == null || p.currency != s.homeCurrency) continue;
       if (!seen.add(p.hash)) continue;
-      if (await repo.hasSmsHash(p.hash)) continue;
       found.add(p);
     }
+    final known = await repo.existingSmsHashes(found.map((p) => p.hash));
+    found.removeWhere((p) => known.contains(p.hash));
     return found;
   }
 
@@ -271,12 +276,19 @@ class AppState extends ChangeNotifier {
     final s = settings!;
     final acc = accounts.firstWhere((a) => a.kind == 'mobile_money',
         orElse: () => accounts.first);
-    var imported = 0;
+    final known = await repo.existingSmsHashes(items.map((p) => p.hash));
+    final rules = await repo.loadMerchantRules();
+    final validCats = categories.map((c) => c.id).toSet();
+    final toInsert = <TxRec>[];
+    final seen = <String>{};
     for (final p in items) {
-      if (await repo.hasSmsHash(p.hash)) continue;
-      await repo.insertTx(TxRec(
+      if (known.contains(p.hash) || !seen.add(p.hash)) continue;
+      final cat = rules[Repository.merchantKey(p.note)];
+      toInsert.add(TxRec(
         id: _uuid.v4(),
         accountId: acc.id,
+        // catégorie devinée d'après les validations précédentes
+        categoryId: (cat != null && validCats.contains(cat)) ? cat : null,
         amount: p.amount,
         currency: p.currency,
         direction: p.direction,
@@ -286,8 +298,9 @@ class AppState extends ChangeNotifier {
         smsHash: p.hash,
         needsReview: true,
       ));
-      imported++;
     }
+    await repo.insertTxBatch(toInsert);
+    final imported = toInsert.length;
     settings = s.copyWith(lastSmsImport: DateTime.now().millisecondsSinceEpoch);
     await repo.saveSettings(settings!);
     await refresh();

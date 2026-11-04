@@ -43,6 +43,7 @@ class AppDb {
       deleted_at INTEGER)''',
     'CREATE UNIQUE INDEX idx_tx_sms ON transactions(sms_hash) WHERE sms_hash IS NOT NULL',
     'CREATE INDEX idx_tx_date ON transactions(occurred_at)',
+    ...v3,
     '''CREATE TABLE planned_items(
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
@@ -63,6 +64,21 @@ class AppDb {
       last_sms_import INTEGER)''',
   ];
 
+  /// v3 : index pour les calculs du budget + mémoire des catégories.
+  static const List<String> v3 = [
+    // Sert spentBetween / spentByCategory / balance (filtre complet couvert).
+    'CREATE INDEX IF NOT EXISTS idx_tx_budget ON transactions('
+        'deleted_at, needs_review, direction, occurred_at)',
+    // Sert la liste « à valider » et la liste récente.
+    'CREATE INDEX IF NOT EXISTS idx_tx_review ON transactions('
+        'needs_review, occurred_at)',
+    // Catégorie retenue pour un libellé (commerçant, site, contact).
+    '''CREATE TABLE IF NOT EXISTS merchant_rules(
+      merchant_key TEXT PRIMARY KEY,
+      category_id TEXT NOT NULL,
+      updated_at INTEGER NOT NULL)''',
+  ];
+
   static Future<Database> open() async {
     final existing = _db;
     if (existing != null) return existing;
@@ -72,7 +88,7 @@ class AppDb {
         '${await getDatabasesPath()}/budget.db';
     final db = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         for (final stmt in schema) {
           await db.execute(stmt);
@@ -84,8 +100,18 @@ class AppDb {
           await db.execute(
               'ALTER TABLE categories ADD COLUMN limit_amount INTEGER');
         }
+        // v3 : index de performance + mémoire des catégories
+        if (oldVersion < 3) {
+          for (final stmt in v3) {
+            await db.execute(stmt);
+          }
+        }
       },
     );
+    // Écritures plus rapides, lectures non bloquées (mobile/desktop).
+    try {
+      await db.rawQuery('PRAGMA journal_mode=WAL');
+    } catch (_) {/* non supporté (web) : on ignore */}
     _db = db;
     return db;
   }

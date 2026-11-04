@@ -60,7 +60,9 @@ class Repository {
         whereArgs: [id],
       );
 
-  Future<List<TxRec>> listTx({int limit = 200, bool? review}) async {
+  /// [offset] permet de charger la liste page par page.
+  Future<List<TxRec>> listTx(
+      {int limit = 200, int offset = 0, bool? review}) async {
     final where = StringBuffer('deleted_at IS NULL');
     if (review != null) where.write(' AND needs_review = ${review ? 1 : 0}');
     final rows = await db.query(
@@ -68,8 +70,94 @@ class Repository {
       where: where.toString(),
       orderBy: 'occurred_at DESC',
       limit: limit,
+      offset: offset,
     );
     return rows.map(TxRec.fromMap).toList();
+  }
+
+  /// Parmi [hashes], ceux déjà présents en base. UNE requête par paquet de
+  /// 500 au lieu d'une requête par SMS.
+  Future<Set<String>> existingSmsHashes(Iterable<String> hashes) async {
+    final list = hashes.toSet().toList();
+    final out = <String>{};
+    for (var i = 0; i < list.length; i += 500) {
+      final chunk = list.sublist(i, min(i + 500, list.length));
+      final marks = List.filled(chunk.length, '?').join(',');
+      final rows = await db.rawQuery(
+          'SELECT sms_hash FROM transactions WHERE sms_hash IN ($marks)',
+          chunk);
+      for (final r in rows) {
+        out.add(r['sms_hash'] as String);
+      }
+    }
+    return out;
+  }
+
+  /// Insère plusieurs transactions dans UNE transaction SQL (bien plus rapide
+  /// qu'une insertion par ligne). Les doublons de SMS sont ignorés.
+  Future<void> insertTxBatch(List<TxRec> items) async {
+    if (items.isEmpty) return;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final t in items) {
+        batch.insert('transactions', t.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  /// Sorties validées par jour sur [days] jours finissant aujourd'hui.
+  /// UNE requête au lieu d'une par jour. Index 0 = le plus ancien.
+  Future<List<int>> spentPerDay(DateTime today, int days) async {
+    final start = DateTime(today.year, today.month, today.day - days + 1);
+    final end = DateTime(today.year, today.month, today.day + 1);
+    final rows = await db.rawQuery(
+      "SELECT occurred_at, amount FROM transactions "
+      "WHERE deleted_at IS NULL AND needs_review = 0 AND direction = 'out' "
+      "AND occurred_at >= ? AND occurred_at < ?",
+      [start.millisecondsSinceEpoch, end.millisecondsSinceEpoch],
+    );
+    final out = List<int>.filled(days, 0);
+    for (final r in rows) {
+      final d = DateTime.fromMillisecondsSinceEpoch(r['occurred_at'] as int);
+      // .round() : robuste aux changements d'heure (journées de 23/25 h)
+      final k = (DateTime(d.year, d.month, d.day).difference(start).inHours /
+              24)
+          .round();
+      if (k >= 0 && k < days) out[k] += (r['amount'] as num).toInt();
+    }
+    return out;
+  }
+
+  // ---- Mémoire des catégories (catégorisation automatique) ----
+  /// Clé normalisée d'un libellé : minuscules, sans chiffres ni ponctuation.
+  static String merchantKey(String? note) {
+    if (note == null) return '';
+    return note
+        .toLowerCase()
+        .replaceAll(RegExp(r'[0-9]+'), ' ')
+        .replaceAll(RegExp(r'[^a-zà-ÿ ]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  Future<Map<String, String>> loadMerchantRules() async {
+    final rows = await db.query('merchant_rules');
+    return {
+      for (final r in rows)
+        r['merchant_key'] as String: r['category_id'] as String,
+    };
+  }
+
+  Future<void> rememberMerchant(String? note, String categoryId) async {
+    final key = merchantKey(note);
+    if (key.isEmpty) return;
+    await db.insert(
+      'merchant_rules',
+      {'merchant_key': key, 'category_id': categoryId, 'updated_at': _now()},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<bool> hasSmsHash(String hash) async {
@@ -106,7 +194,7 @@ class Repository {
   }
 
   /// Entrées validées par catégorie entre [from] et [to] (clé '' = sans catégorie).
-  Future<Map<String, int>> earnedByCategory(DateTime from, DateTime to) async {
+  Future<Map<String, int>> incomeByCategory(DateTime from, DateTime to) async {
     final rows = await db.rawQuery(
       "SELECT category_id, SUM(amount) AS total FROM transactions "
       "WHERE deleted_at IS NULL AND needs_review = 0 AND direction = 'in' "
@@ -128,17 +216,15 @@ class Repository {
       );
 
   /// Solde = soldes d'ouverture + entrées - sorties validées (tous comptes).
+  /// UNE seule requête au lieu de deux.
   Future<int> balance() async {
-    final opening = Sqflite.firstIntValue(await db.rawQuery(
-            'SELECT COALESCE(SUM(opening_balance),0) FROM accounts '
-            'WHERE deleted_at IS NULL')) ??
-        0;
-    final flow = Sqflite.firstIntValue(await db.rawQuery(
-            "SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount "
+    return Sqflite.firstIntValue(await db.rawQuery(
+            "SELECT (SELECT COALESCE(SUM(opening_balance),0) FROM accounts "
+            "WHERE deleted_at IS NULL) + "
+            "(SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount "
             "ELSE -amount END),0) FROM transactions "
-            "WHERE deleted_at IS NULL AND needs_review = 0")) ??
+            "WHERE deleted_at IS NULL AND needs_review = 0)")) ??
         0;
-    return opening + flow;
   }
 
   // ---- Charges / rentrées prévues ----
