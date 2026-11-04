@@ -78,18 +78,19 @@ class Repository {
     return r.isNotEmpty;
   }
 
-  /// Somme des sorties entre [from] (inclus) et [to] (exclu).
+  /// Somme des sorties validées entre [from] (inclus) et [to] (exclu).
+  /// Les transactions « à valider » (needs_review = 1) ne comptent pas.
   Future<int> spentBetween(DateTime from, DateTime to) async {
     final r = await db.rawQuery(
       "SELECT COALESCE(SUM(amount),0) FROM transactions "
-      "WHERE deleted_at IS NULL AND direction = 'out' "
+      "WHERE deleted_at IS NULL AND needs_review = 0 AND direction = 'out' "
       "AND occurred_at >= ? AND occurred_at < ?",
       [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
     );
     return Sqflite.firstIntValue(r) ?? 0;
   }
 
-  /// Solde = soldes d'ouverture + entrées - sorties (tous comptes).
+  /// Solde = soldes d'ouverture + entrées - sorties validées (tous comptes).
   Future<int> balance() async {
     final opening = Sqflite.firstIntValue(await db.rawQuery(
             'SELECT COALESCE(SUM(opening_balance),0) FROM accounts '
@@ -97,7 +98,8 @@ class Repository {
         0;
     final flow = Sqflite.firstIntValue(await db.rawQuery(
             "SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount "
-            "ELSE -amount END),0) FROM transactions WHERE deleted_at IS NULL")) ??
+            "ELSE -amount END),0) FROM transactions "
+            "WHERE deleted_at IS NULL AND needs_review = 0")) ??
         0;
     return opening + flow;
   }

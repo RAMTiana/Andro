@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 
+import '../core/currencies.dart';
 import '../core/money.dart';
 import '../data/models.dart';
 
@@ -9,6 +11,9 @@ class SmsRule {
   final Direction direction;
   final RegExp pattern; // groupe 1 = montant
   final String currency;
+  final bool decimal; // montants avec point décimal (ex. 15564.2) -> arrondi
+  final RegExp? feePattern; // groupe 1 = frais, ajoutés au montant
+  final RegExp? notePattern; // groupe 1 = libellé (ex. nom du site)
 
   SmsRule({
     required this.carrier,
@@ -16,6 +21,9 @@ class SmsRule {
     required this.direction,
     required this.pattern,
     required this.currency,
+    this.decimal = false,
+    this.feePattern,
+    this.notePattern,
   });
 
   factory SmsRule.fromJson(Map<String, dynamic> j) => SmsRule(
@@ -27,7 +35,23 @@ class SmsRule {
         pattern: RegExp(j['pattern'] as String,
             caseSensitive: false, dotAll: true),
         currency: (j['currency'] as String?) ?? 'MGA',
+        decimal: (j['decimal'] as bool?) ?? false,
+        feePattern: _opt(j['fee_pattern']),
+        notePattern: _opt(j['note_pattern']),
       );
+
+  static RegExp? _opt(Object? v) => v == null
+      ? null
+      : RegExp(v as String, caseSensitive: false, dotAll: true);
+
+  /// Convertit le texte d'un montant en unités mineures.
+  int? parseAmount(String raw) {
+    final clean = raw.replaceAll(RegExp(r'[.,\s]+$'), '');
+    if (!decimal) return Money.parse(clean, currency);
+    final d = double.tryParse(clean.replaceAll(',', '.'));
+    if (d == null) return null;
+    return (d * pow(10, exponentOf(currency))).round();
+  }
 
   bool matchesSender(String s) =>
       senders.isEmpty || senders.contains(s.trim().toLowerCase());
@@ -37,6 +61,7 @@ class ParsedSms {
   final int amount;
   final Direction direction;
   final String carrier;
+  final String note; // libellé : « Opérateur · site » ou simplement l'opérateur
   final String currency;
   final DateTime date;
   final String hash;
@@ -46,6 +71,7 @@ class ParsedSms {
     required this.amount,
     required this.direction,
     required this.carrier,
+    required this.note,
     required this.currency,
     required this.date,
     required this.hash,
@@ -84,13 +110,20 @@ class SmsParser {
       if (!r.matchesSender(sender)) continue;
       final m = r.pattern.firstMatch(body);
       if (m == null || m.groupCount < 1) continue;
-      final raw = (m.group(1) ?? '').replaceAll(RegExp(r'[.,\s]+$'), '');
-      final amount = Money.parse(raw, r.currency);
+      var amount = r.parseAmount(m.group(1) ?? '');
       if (amount == null || amount <= 0) continue;
+      final feeMatch = r.feePattern?.firstMatch(body);
+      if (feeMatch != null && feeMatch.groupCount >= 1) {
+        amount += r.parseAmount(feeMatch.group(1) ?? '') ?? 0;
+      }
+      final label = r.notePattern?.firstMatch(body)?.group(1)?.trim();
       return ParsedSms(
         amount: amount,
         direction: r.direction,
         carrier: r.carrier,
+        note: (label == null || label.isEmpty)
+            ? r.carrier
+            : '${r.carrier} · $label',
         currency: r.currency,
         date: date,
         hash: hashOf(sender, date, body),

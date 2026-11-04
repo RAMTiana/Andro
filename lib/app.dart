@@ -1,158 +1,226 @@
-import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:uuid/uuid.dart';
 
-import 'package:sqflite/sqflite.dart';
+import '../core/currencies.dart';
+import '../core/strings.dart';
+import '../data/db.dart';
+import '../data/models.dart';
+import '../data/repository.dart';
+import '../domain/daily_budget_calculator.dart';
+import '../sms/sms_parser.dart';
+import '../sms/sms_reader.dart';
 
-import 'models.dart';
+class AppState extends ChangeNotifier {
+  late Repository repo;
+  final SmsReader _sms = SmsReader();
+  SmsParser? _parser;
+  final Uuid _uuid = const Uuid();
 
-/// Accès aux données (SQLite). Aucune logique métier ici.
-class Repository {
-  final Database db;
-  Repository(this.db);
+  BudgetSettings? settings;
+  List<Account> accounts = [];
+  List<BudgetCategory> categories = [];
+  List<PlannedItem> planned = [];
+  List<TxRec> recent = [];
+  List<TxRec> pending = [];
+  int balance = 0;
+  int spentToday = 0;
+  DailyBudget? daily;
 
-  int _now() => DateTime.now().millisecondsSinceEpoch;
+  bool get onboarded => settings != null;
+  int get pendingReview => pending.length;
 
-  // ---- Paramètres ----
-  Future<BudgetSettings?> loadSettings() async {
-    final rows = await db.query('budget_settings', where: 'id = 1');
-    return rows.isEmpty ? null : BudgetSettings.fromMap(rows.first);
+  Future<void> init() async {
+    S.setLang(PlatformDispatcher.instance.locale.languageCode);
+    repo = Repository(await AppDb.open());
+    settings = await repo.loadSettings();
+    if (settings != null) S.setLang(settings!.locale);
+    final rules = await rootBundle.loadString('assets/sms_rules.json');
+    _parser = SmsParser.fromJsonString(rules);
+    await refresh(notify: false);
   }
 
-  Future<void> saveSettings(BudgetSettings s) => db.insert(
-        'budget_settings',
-        s.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+  String? categoryName(String? id) {
+    if (id == null) return null;
+    return categories.where((c) => c.id == id).map((c) => c.name).firstOrNull;
+  }
+
+  Future<void> refresh({bool notify = true}) async {
+    final s = settings;
+    if (s != null) {
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, now.day);
+      final end = DateTime(now.year, now.month, now.day + 1);
+      accounts = await repo.listAccounts();
+      categories = await repo.listCategories();
+      planned = await repo.listPlanned();
+      recent = await repo.listTx(limit: 200, review: false);
+      pending = await repo.listTx(limit: 500, review: true);
+      balance = await repo.balance();
+      spentToday = await repo.spentBetween(start, end);
+      daily = DailyBudgetCalculator.compute(
+        today: now,
+        balance: balance,
+        spentToday: spentToday,
+        planned: planned,
+        settings: s,
       );
-
-  // ---- Comptes ----
-  Future<List<Account>> listAccounts() async {
-    final rows =
-        await db.query('accounts', where: 'deleted_at IS NULL', orderBy: 'rowid');
-    return rows.map(Account.fromMap).toList();
-  }
-
-  Future<void> insertAccount(Account a) => db.insert('accounts', a.toMap());
-
-  // ---- Catégories ----
-  Future<List<BudgetCategory>> listCategories() async {
-    final rows = await db.query('categories',
-        where: 'deleted_at IS NULL', orderBy: 'rowid');
-    return rows.map(BudgetCategory.fromMap).toList();
-  }
-
-  Future<void> insertCategories(List<BudgetCategory> cats) async {
-    final batch = db.batch();
-    for (final c in cats) {
-      batch.insert('categories', c.toMap());
     }
-    await batch.commit(noResult: true);
+    if (notify) notifyListeners();
   }
 
-  // ---- Transactions ----
-  Future<void> insertTx(TxRec t) => db.insert('transactions', t.toMap());
-
-  Future<void> updateTx(TxRec t) =>
-      db.update('transactions', t.toMap(), where: 'id = ?', whereArgs: [t.id]);
-
-  Future<void> softDeleteTx(String id) => db.update(
-        'transactions',
-        {'deleted_at': _now(), 'updated_at': _now()},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-
-  Future<List<TxRec>> listTx({int limit = 200, bool? review}) async {
-    final where = StringBuffer('deleted_at IS NULL');
-    if (review != null) where.write(' AND needs_review = ${review ? 1 : 0}');
-    final rows = await db.query(
-      'transactions',
-      where: where.toString(),
-      orderBy: 'occurred_at DESC',
-      limit: limit,
-    );
-    return rows.map(TxRec.fromMap).toList();
-  }
-
-  Future<bool> hasSmsHash(String hash) async {
-    final r = await db.query('transactions',
-        columns: ['id'], where: 'sms_hash = ?', whereArgs: [hash], limit: 1);
-    return r.isNotEmpty;
-  }
-
-  /// Somme des sorties validées entre [from] (inclus) et [to] (exclu).
-  /// Les transactions « à valider » (needs_review = 1) ne comptent pas.
-  Future<int> spentBetween(DateTime from, DateTime to) async {
-    final r = await db.rawQuery(
-      "SELECT COALESCE(SUM(amount),0) FROM transactions "
-      "WHERE deleted_at IS NULL AND needs_review = 0 AND direction = 'out' "
-      "AND occurred_at >= ? AND occurred_at < ?",
-      [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
-    );
-    return Sqflite.firstIntValue(r) ?? 0;
-  }
-
-  /// Solde = soldes d'ouverture + entrées - sorties validées (tous comptes).
-  Future<int> balance() async {
-    final opening = Sqflite.firstIntValue(await db.rawQuery(
-            'SELECT COALESCE(SUM(opening_balance),0) FROM accounts '
-            'WHERE deleted_at IS NULL')) ??
-        0;
-    final flow = Sqflite.firstIntValue(await db.rawQuery(
-            "SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount "
-            "ELSE -amount END),0) FROM transactions "
-            "WHERE deleted_at IS NULL AND needs_review = 0")) ??
-        0;
-    return opening + flow;
-  }
-
-  // ---- Charges / rentrées prévues ----
-  Future<List<PlannedItem>> listPlanned() async {
-    final rows = await db.query('planned_items',
-        where: 'deleted_at IS NULL', orderBy: 'due_date');
-    return rows.map(PlannedItem.fromMap).toList();
-  }
-
-  Future<void> insertPlanned(PlannedItem p) =>
-      db.insert('planned_items', p.toMap());
-
-  Future<void> softDeletePlanned(String id) => db.update(
-        'planned_items',
-        {'deleted_at': _now(), 'updated_at': _now()},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-
-  // ---- Changement de devise ----
-  /// Convertit tous les montants vers [newCurrency] dans une seule
-  /// transaction SQL (tout ou rien). [rate] = valeur de 1 ancienne devise.
-  Future<void> convertCurrency({
-    required String newCurrency,
-    required double rate,
-    required int oldExp,
-    required int newExp,
+  Future<void> completeOnboarding({
+    required String homeCurrency,
+    required int cashBalance,
+    required int mobileBalance,
   }) async {
-    final factor = rate * pow(10, newExp - oldExp);
-    final now = _now();
-    await db.transaction((txn) async {
-      await txn.rawUpdate(
-          'UPDATE accounts SET opening_balance = '
-          'CAST(ROUND(opening_balance * ?) AS INTEGER), '
-          'currency = ?, updated_at = ?',
-          [factor, newCurrency, now]);
-      await txn.rawUpdate(
-          'UPDATE transactions SET amount = '
-          'MAX(1, CAST(ROUND(amount * ?) AS INTEGER)), '
-          'currency = ?, updated_at = ?',
-          [factor, newCurrency, now]);
-      await txn.rawUpdate(
-          'UPDATE planned_items SET amount = '
-          'MAX(1, CAST(ROUND(amount * ?) AS INTEGER)), '
-          'currency = ?, updated_at = ?',
-          [factor, newCurrency, now]);
-      await txn.rawUpdate(
-          'UPDATE budget_settings SET savings_goal = '
-          'CAST(ROUND(savings_goal * ?) AS INTEGER), home_currency = ? '
-          'WHERE id = 1',
-          [factor, newCurrency]);
-    });
+    final s = BudgetSettings(homeCurrency: homeCurrency, locale: S.lang);
+    await repo.saveSettings(s);
+    await repo.insertAccount(Account(
+        id: _uuid.v4(),
+        name: S.t('acc_cash'),
+        kind: 'cash',
+        currency: homeCurrency,
+        openingBalance: cashBalance));
+    await repo.insertAccount(Account(
+        id: _uuid.v4(),
+        name: S.t('acc_mobile'),
+        kind: 'mobile_money',
+        currency: homeCurrency,
+        openingBalance: mobileBalance));
+    BudgetCategory cat(String key, Direction d) =>
+        BudgetCategory(id: _uuid.v4(), name: S.t(key), direction: d);
+    await repo.insertCategories([
+      cat('cat_food', Direction.outflow),
+      cat('cat_transport', Direction.outflow),
+      cat('cat_phone', Direction.outflow),
+      cat('cat_bills', Direction.outflow),
+      cat('cat_health', Direction.outflow),
+      cat('cat_school', Direction.outflow),
+      cat('cat_leisure', Direction.outflow),
+      cat('cat_other', Direction.outflow),
+      cat('cat_salary', Direction.inflow),
+      cat('cat_business', Direction.inflow),
+      cat('cat_income_other', Direction.inflow),
+    ]);
+    settings = s;
+    await refresh();
+  }
+
+  Future<void> updateSettings(BudgetSettings s) async {
+    settings = s;
+    S.setLang(s.locale);
+    await repo.saveSettings(s);
+    await refresh();
+  }
+
+  Future<void> addTransaction({
+    required int amount,
+    required Direction direction,
+    required String accountId,
+    String? categoryId,
+    String? note,
+  }) async {
+    await repo.insertTx(TxRec(
+      id: _uuid.v4(),
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: amount,
+      currency: settings!.homeCurrency,
+      direction: direction,
+      occurredAt: DateTime.now(),
+      note: note,
+    ));
+    await refresh();
+  }
+
+  Future<void> confirmTx(TxRec t, {String? categoryId}) async {
+    await repo.updateTx(t.copyWith(categoryId: categoryId, needsReview: false));
+    await refresh();
+  }
+
+  Future<void> deleteTx(String id) async {
+    await repo.softDeleteTx(id);
+    await refresh();
+  }
+
+  Future<void> changeCurrency(String newCurrency, double rate) async {
+    final old = settings!.homeCurrency;
+    if (newCurrency == old) return;
+    await repo.convertCurrency(
+      newCurrency: newCurrency,
+      rate: rate,
+      oldExp: exponentOf(old),
+      newExp: exponentOf(newCurrency),
+    );
+    settings = await repo.loadSettings();
+    await refresh();
+  }
+
+  Future<void> addPlanned(PlannedItem p) async {
+    await repo.insertPlanned(p);
+    await refresh();
+  }
+
+  Future<void> removePlanned(String id) async {
+    await repo.softDeletePlanned(id);
+    await refresh();
+  }
+
+  /// Lit les SMS Mobile Money et renvoie ceux qui sont reconnus et pas encore
+  /// importés. Ne modifie RIEN en base. Renvoie null si la lecture des SMS
+  /// est impossible (permission refusée ou appareil non Android).
+  Future<List<ParsedSms>?> scanSms() async {
+    if (!await _sms.ensurePermission()) return null;
+    final s = settings!;
+    final last = s.lastSmsImport;
+    final since = last != null
+        ? DateTime.fromMillisecondsSinceEpoch(last)
+            .subtract(const Duration(days: 1))
+        : DateTime.now().subtract(const Duration(days: 30));
+    final messages = await _sms.readInbox(since: since);
+
+    final found = <ParsedSms>[];
+    final seen = <String>{};
+    for (final m in messages) {
+      final p =
+          _parser!.parse(sender: m.sender, body: m.body, date: m.date);
+      if (p == null || p.currency != s.homeCurrency) continue;
+      if (!seen.add(p.hash)) continue;
+      if (await repo.hasSmsHash(p.hash)) continue;
+      found.add(p);
+    }
+    found.sort((a, b) => b.date.compareTo(a.date));
+    return found;
+  }
+
+  /// Enregistre les SMS choisis dans l'aperçu, en « à valider » : ils ne
+  /// comptent pas dans le budget tant qu'ils ne sont pas validés.
+  /// Retourne le nombre de transactions ajoutées.
+  Future<int> importParsed(List<ParsedSms> items) async {
+    final s = settings!;
+    final acc = accounts.firstWhere((a) => a.kind == 'mobile_money',
+        orElse: () => accounts.first);
+    var imported = 0;
+    for (final p in items) {
+      if (await repo.hasSmsHash(p.hash)) continue;
+      await repo.insertTx(TxRec(
+        id: _uuid.v4(),
+        accountId: acc.id,
+        amount: p.amount,
+        currency: p.currency,
+        direction: p.direction,
+        occurredAt: p.date,
+        note: p.note,
+        source: 'sms',
+        smsHash: p.hash,
+        needsReview: true,
+      ));
+      imported++;
+    }
+    settings = s.copyWith(lastSmsImport: DateTime.now().millisecondsSinceEpoch);
+    await repo.saveSettings(settings!);
+    await refresh();
+    return imported;
   }
 }

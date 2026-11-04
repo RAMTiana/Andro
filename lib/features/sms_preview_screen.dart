@@ -87,7 +87,7 @@ class _SmsPreviewScreenState extends State<SmsPreviewScreen> {
                     ),
                   ),
                   subtitle: Text(
-                    '${fmtDateTime(p.date)} · ${p.carrier}\n${p.body}',
+                    '${fmtDateTime(p.date)} · ${p.note}\n${p.body}',
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
