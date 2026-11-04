@@ -55,6 +55,13 @@ class S {
       'account': 'Compte',
       'note': 'Note (optionnel)',
       'save': 'Enregistrer',
+      'reminder_title': 'Mon Budget',
+      'reminder_body': "Il te reste {x} à dépenser aujourd'hui.",
+      'reminder_body_over': 'Budget du jour dépassé de {x}.',
+      'reminder_body_generic': "Pense à noter tes dépenses d'aujourd'hui.",
+      'reminder_setting': 'Rappel quotidien',
+      'reminder_at': 'Chaque jour à {h} h',
+      'reminder_denied': 'Notifications refusées : active-les dans les réglages du téléphone.',
       'backup_title': 'Sauvegarde',
       'backup_hint':
           "Exporte toutes tes données dans un fichier (à garder sur Drive, "
@@ -186,6 +193,13 @@ class S {
       'account': 'Account',
       'note': 'Note (optional)',
       'save': 'Save',
+      'reminder_title': 'My Budget',
+      'reminder_body': 'You have {x} left to spend today.',
+      'reminder_body_over': "Today's budget exceeded by {x}.",
+      'reminder_body_generic': "Remember to log today's spending.",
+      'reminder_setting': 'Daily reminder',
+      'reminder_at': 'Every day at {h}:00',
+      'reminder_denied': 'Notifications denied: enable them in phone settings.',
       'backup_title': 'Backup',
       'backup_hint':
           "Export all your data to a file (keep it on Drive, WhatsApp, "

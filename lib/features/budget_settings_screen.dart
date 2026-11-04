@@ -23,6 +23,8 @@ class _BudgetSettingsScreenState extends State<BudgetSettingsScreen> {
   late double _threshold;
   late String _lang;
   String? _error;
+  late bool _reminderOn;
+  late int _reminderHour;
 
   @override
   void initState() {
@@ -35,6 +37,23 @@ class _BudgetSettingsScreenState extends State<BudgetSettingsScreen> {
     _mode = s.periodMode;
     _threshold = s.alertThreshold.toDouble();
     _lang = s.locale;
+    final r = context.read<AppState>().reminder;
+    _reminderOn = r.enabled;
+    _reminderHour = r.hour;
+  }
+
+  Future<void> _setReminder(bool on, int hour) async {
+    setState(() {
+      _reminderOn = on;
+      _reminderHour = hour;
+    });
+    final ok =
+        await context.read<AppState>().setReminder(enabled: on, hour: hour);
+    if (!ok && mounted) {
+      setState(() => _reminderOn = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(S.t('reminder_denied'))));
+    }
   }
 
   @override
@@ -104,6 +123,26 @@ class _BudgetSettingsScreenState extends State<BudgetSettingsScreen> {
             onChanged: (v) => setState(() => _threshold = v),
           ),
           const SizedBox(height: 12),
+          if (context.read<AppState>().reminder.supported) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.notifications_active_outlined),
+              title: Text(S.t('reminder_setting')),
+              subtitle: Text(S.tr('reminder_at', {'h': '$_reminderHour'})),
+              value: _reminderOn,
+              onChanged: (v) => _setReminder(v, _reminderHour),
+            ),
+            if (_reminderOn)
+              Slider(
+                min: 6,
+                max: 22,
+                divisions: 16,
+                value: _reminderHour.toDouble(),
+                label: '$_reminderHour h',
+                onChanged: (v) => setState(() => _reminderHour = v.round()),
+                onChangeEnd: (v) => _setReminder(true, v.round()),
+              ),
+          ],
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.event_repeat),

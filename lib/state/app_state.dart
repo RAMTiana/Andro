@@ -10,6 +10,7 @@ import '../data/db.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
 import '../domain/daily_budget_calculator.dart';
+import '../notifications/reminder_service.dart';
 import '../sms/sms_parser.dart';
 import '../sms/sms_reader.dart';
 
@@ -18,6 +19,7 @@ class AppState extends ChangeNotifier {
   final SmsReader _sms = SmsReader();
   SmsParser? _parser;
   final Uuid _uuid = const Uuid();
+  final ReminderService reminder = ReminderService();
 
   BudgetSettings? settings;
   List<Account> accounts = [];
@@ -44,6 +46,11 @@ class AppState extends ChangeNotifier {
     if (settings != null) S.setLang(settings!.locale);
     final rules = await rootBundle.loadString('assets/sms_rules.json');
     _parser = SmsParser.fromJsonString(rules);
+    try {
+      await reminder.init();
+    } catch (e) {
+      debugPrint('Rappel indisponible : $e');
+    }
     await refresh(notify: false);
   }
 
@@ -80,6 +87,7 @@ class AppState extends ChangeNotifier {
         planned: planned,
         settings: s,
       );
+      _rescheduleReminder();
     }
     if (notify) notifyListeners();
   }
@@ -305,5 +313,27 @@ class AppState extends ChangeNotifier {
     await repo.saveSettings(settings!);
     await refresh();
     return imported;
+  }
+
+  /// Met à jour le rappel quotidien avec le reste du jour (sans bloquer l'écran).
+  void _rescheduleReminder() {
+    final s = settings;
+    if (s == null) return;
+    reminder
+        .reschedule(daily?.remainingToday, s.homeCurrency)
+        .catchError((Object e) => debugPrint('Rappel : $e'));
+  }
+
+  /// Active / désactive le rappel. Retourne false si l'autorisation est refusée.
+  Future<bool> setReminder({required bool enabled, required int hour}) async {
+    if (enabled && !await reminder.requestPermission()) {
+      await reminder.save(enabled: false, hour: hour);
+      notifyListeners();
+      return false;
+    }
+    await reminder.save(enabled: enabled, hour: hour);
+    _rescheduleReminder();
+    notifyListeners();
+    return true;
   }
 }
