@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_theme.dart';
 import '../core/money.dart';
 import '../core/strings.dart';
 import '../domain/daily_budget_calculator.dart';
@@ -31,9 +32,9 @@ class HomeScreen extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final color = switch (d.status) {
-      BudgetStatus.ok => cs.primary,
-      BudgetStatus.warning => Colors.orange.shade700,
-      BudgetStatus.over => cs.error,
+      BudgetStatus.ok => AppColors.gold,
+      BudgetStatus.warning => AppColors.warning,
+      BudgetStatus.over => AppColors.danger,
     };
 
     return Scaffold(
@@ -63,30 +64,54 @@ class HomeScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Card(
-              color: color.withAlpha(30),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-                child: Column(
-                  children: [
-                    Text(S.t('remaining_prefix'), style: text.titleMedium),
-                    const SizedBox(height: 8),
-                    FittedBox(
-                      child: Text(
-                        Money.format(d.remainingToday, cur),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.aubergine, AppColors.aubergineDeep],
+                ),
+                border: Border.all(color: color.withValues(alpha: 0.35)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.aubergine.withValues(alpha: 0.45),
+                    blurRadius: 32,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(S.t('remaining_prefix'),
+                      style: text.titleMedium
+                          ?.copyWith(color: AppColors.silver)),
+                  const SizedBox(height: 10),
+                  FittedBox(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(
+                          begin: 0, end: d.remainingToday.toDouble()),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, v, __) => Text(
+                        Money.format(v.round(), cur),
                         style: text.displayMedium?.copyWith(
-                            color: color, fontWeight: FontWeight.bold),
+                            color: color, fontWeight: FontWeight.w800),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(S.t('remaining_suffix')),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(S.t('remaining_suffix'),
+                      style: const TextStyle(color: AppColors.silver)),
+                ],
               ),
             ),
+            const SizedBox(height: 8),
             if (d.status != BudgetStatus.ok)
               Card(
-                color: color.withAlpha(40),
+                color: color.withValues(alpha: 0.14),
                 child: ListTile(
                   leading: Icon(Icons.warning_amber_rounded, color: color),
                   title: Text(_alertText(d)),
@@ -156,10 +181,12 @@ class _Stat extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: text.labelMedium),
+            Text(label,
+                style: text.labelMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.secondary)),
             const SizedBox(height: 4),
             Text(value,
-                style: text.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             if (footer != null) Text(footer!, style: text.bodySmall),
           ],
         ),

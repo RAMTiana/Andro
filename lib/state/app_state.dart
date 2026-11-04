@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../core/currencies.dart';
 import '../core/strings.dart';
 import '../data/backup.dart';
+import '../data/csv_export.dart';
 import '../data/db.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
@@ -26,6 +27,9 @@ class AppState extends ChangeNotifier {
   List<TxRec> pending = [];
   int balance = 0;
   int spentToday = 0;
+  int monthSpent = 0;
+  Map<String, int> monthByCategory = {};
+  List<int> last7Days = []; // du plus ancien (J-6) à aujourd'hui
   DailyBudget? daily;
 
   bool get onboarded => settings != null;
@@ -59,6 +63,15 @@ class AppState extends ChangeNotifier {
       pending = await repo.listTx(limit: 500, review: true);
       balance = await repo.balance();
       spentToday = await repo.spentBetween(start, end);
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthEnd = DateTime(now.year, now.month + 1, 1);
+      monthByCategory = await repo.spentByCategory(monthStart, monthEnd);
+      monthSpent = monthByCategory.values.fold(0, (a, b) => a + b);
+      last7Days = [
+        for (var i = 6; i >= 0; i--)
+          await repo.spentBetween(DateTime(now.year, now.month, now.day - i),
+              DateTime(now.year, now.month, now.day - i + 1)),
+      ];
       daily = DailyBudgetCalculator.compute(
         today: now,
         balance: balance,
@@ -155,6 +168,18 @@ class AppState extends ChangeNotifier {
     settings = await repo.loadSettings();
     if (settings != null) S.setLang(settings!.locale);
     await refresh();
+  }
+
+  /// Plafond mensuel d'une catégorie ([amount] null = le retirer).
+  Future<void> setCategoryLimit(String id, int? amount) async {
+    await repo.setCategoryLimit(id, amount);
+    await refresh();
+  }
+
+  /// Toutes les transactions validées au format CSV (séparateur « ; »).
+  Future<String> exportCsv() async {
+    final all = await repo.listTx(limit: 1000000, review: false);
+    return transactionsToCsv(all, categoryName: categoryName);
   }
 
   Future<void> changeCurrency(String newCurrency, double rate) async {

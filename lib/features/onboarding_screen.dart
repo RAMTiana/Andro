@@ -3,6 +3,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_theme.dart';
 import '../core/currencies.dart';
 import '../core/money.dart';
 import '../core/strings.dart';
@@ -64,9 +65,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onSelectionChanged: (s) => setState(() => S.setLang(s.first)),
             ),
             const SizedBox(height: 32),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [AppColors.aubergine, AppColors.aubergineLight],
+                ),
+              ),
+              child: const Icon(Icons.account_balance_wallet_rounded,
+                  color: AppColors.gold, size: 32),
+            ),
+            const SizedBox(height: 20),
             Text(S.t('welcome'), style: text.headlineLarge),
             const SizedBox(height: 8),
-            Text(S.t('onb_intro')),
+            Text(S.t('onb_intro'),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary)),
             const SizedBox(height: 24),
             DropdownMenu<String>(
               label: Text(S.t('currency')),

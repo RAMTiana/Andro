@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_theme.dart';
 import '../core/date_fmt.dart';
 import '../core/money.dart';
 import '../core/strings.dart';
@@ -83,7 +84,7 @@ class _SmsPreviewScreenState extends State<SmsPreviewScreen> {
                     '${income ? '+' : '-'}${Money.format(p.amount, cur)}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: income ? Colors.green.shade700 : null,
+                      color: income ? AppColors.gold : null,
                     ),
                   ),
                   subtitle: Text(

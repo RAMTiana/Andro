@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_theme.dart';
 import '../core/date_fmt.dart';
 import '../core/money.dart';
 import '../core/strings.dart';
@@ -23,17 +24,29 @@ class TxTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final income = tx.direction == Direction.inflow;
     final note = (tx.note == null || tx.note!.isEmpty) ? '' : ' · ${tx.note}';
+    final cs = Theme.of(context).colorScheme;
+    final accent = income ? AppColors.gold : cs.secondary;
     return ListTile(
-      leading: CircleAvatar(
-        child: Icon(income ? Icons.south_west : Icons.north_east),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(income ? Icons.south_west : Icons.north_east,
+            color: accent, size: 20),
       ),
-      title: Text(categoryName ?? S.t('cat_other')),
+      title: Text(categoryName ?? S.t('cat_other'),
+          style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text('${fmtDateTime(tx.occurredAt)}$note'),
       trailing: Text(
         '${income ? '+' : '-'}${Money.format(tx.amount, currency)}',
         style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: income ? Colors.green.shade700 : null,
+          fontWeight: FontWeight.w700,
+          fontSize: 15,
+          color: income ? AppColors.gold : cs.onSurface,
         ),
       ),
     );

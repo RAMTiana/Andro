@@ -24,6 +24,7 @@ class AppDb {
       name TEXT NOT NULL,
       direction TEXT NOT NULL,
       icon TEXT,
+      limit_amount INTEGER,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER)''',
     '''CREATE TABLE transactions(
@@ -71,10 +72,17 @@ class AppDb {
         '${await getDatabasesPath()}/budget.db';
     final db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         for (final stmt in schema) {
           await db.execute(stmt);
+        }
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // v2 : plafond mensuel par catégorie
+        if (oldVersion < 2) {
+          await db.execute(
+              'ALTER TABLE categories ADD COLUMN limit_amount INTEGER');
         }
       },
     );

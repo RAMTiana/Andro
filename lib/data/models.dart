@@ -74,17 +74,20 @@ class BudgetCategory {
   final String id;
   final String name;
   final Direction direction;
+  final int? limitAmount; // plafond mensuel en unités mineures (null = aucun)
 
   const BudgetCategory({
     required this.id,
     required this.name,
     required this.direction,
+    this.limitAmount,
   });
 
   Map<String, Object?> toMap() => {
         'id': id,
         'name': name,
         'direction': direction.code,
+        'limit_amount': limitAmount,
         'updated_at': _nowMs(),
       };
 
@@ -92,6 +95,7 @@ class BudgetCategory {
         id: m['id'] as String,
         name: m['name'] as String,
         direction: Direction.fromCode(m['direction'] as String),
+        limitAmount: m['limit_amount'] as int?,
       );
 }
 
