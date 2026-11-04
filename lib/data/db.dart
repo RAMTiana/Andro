@@ -1,5 +1,11 @@
 import 'package:sqflite/sqflite.dart';
 
+// Android / iOS / macOS : sqflite tel quel. Linux / Windows : sqflite_common_ffi.
+// Web : sqflite_common_ffi_web. Le bon fichier est choisi à la compilation.
+import 'db_factory.dart'
+    if (dart.library.io) 'db_factory_io.dart'
+    if (dart.library.js_interop) 'db_factory_web.dart';
+
 /// Ouverture de la base SQLite locale et création du schéma.
 class AppDb {
   static Database? _db;
@@ -59,7 +65,10 @@ class AppDb {
   static Future<Database> open() async {
     final existing = _db;
     if (existing != null) return existing;
-    final path = '${await getDatabasesPath()}/budget.db';
+    await initDbFactory();
+    // Android/iOS/macOS : chemin habituel (les données existantes sont conservées).
+    final path = await platformDbPath('budget.db') ??
+        '${await getDatabasesPath()}/budget.db';
     final db = await openDatabase(
       path,
       version: 1,

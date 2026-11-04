@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +6,7 @@ import '../core/date_fmt.dart';
 import '../core/money.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
+import '../sms/sms_parser.dart';
 import '../state/app_state.dart';
 import 'sms_preview_screen.dart';
 
@@ -12,6 +14,7 @@ import 'sms_preview_screen.dart';
 class ReviewScreen extends StatelessWidget {
   const ReviewScreen({super.key});
 
+  /// Lecture automatique de la boîte SMS (Android uniquement).
   Future<void> _import(BuildContext context, AppState st) async {
     final found = await st.scanSms();
     if (!context.mounted) return;
@@ -19,11 +22,26 @@ class ReviewScreen extends StatelessWidget {
       _snack(context, S.t('sms_denied'));
       return;
     }
+    await _preview(context, found, S.t('import_none'));
+  }
+
+  /// Texte collé à la main (Android et iPhone).
+  Future<void> _paste(BuildContext context, AppState st) async {
+    final text = await showDialog<String>(
+        context: context, builder: (_) => const _PasteDialog());
+    if (text == null || text.trim().isEmpty) return;
+    final found = await st.parsePasted(text);
+    if (!context.mounted) return;
+    await _preview(context, found, S.t('paste_none'));
+  }
+
+  /// Rien n'est enregistré avant la confirmation dans l'aperçu.
+  Future<void> _preview(
+      BuildContext context, List<ParsedSms> found, String emptyMsg) async {
     if (found.isEmpty) {
-      _snack(context, S.t('import_none'));
+      _snack(context, emptyMsg);
       return;
     }
-    // Rien n'est enregistré avant la confirmation dans l'aperçu.
     final n = await Navigator.of(context).push<int>(
         MaterialPageRoute(builder: (_) => SmsPreviewScreen(items: found)));
     if (!context.mounted || n == null) return;
@@ -42,10 +60,19 @@ class ReviewScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          FilledButton.icon(
-            onPressed: () => _import(context, st),
-            icon: const Icon(Icons.sms_outlined),
-            label: Text(S.t('import_sms')),
+          // iOS interdit aux applications de lire les SMS : bouton réservé à Android.
+          if (defaultTargetPlatform == TargetPlatform.android) ...[
+            FilledButton.icon(
+              onPressed: () => _import(context, st),
+              icon: const Icon(Icons.sms_outlined),
+              label: Text(S.t('import_sms')),
+            ),
+            const SizedBox(height: 8),
+          ],
+          OutlinedButton.icon(
+            onPressed: () => _paste(context, st),
+            icon: const Icon(Icons.content_paste),
+            label: Text(S.t('paste_sms')),
           ),
           const SizedBox(height: 12),
           Text(S.t('review_hint')),
@@ -113,6 +140,51 @@ class _PendingCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PasteDialog extends StatefulWidget {
+  const _PasteDialog();
+
+  @override
+  State<_PasteDialog> createState() => _PasteDialogState();
+}
+
+class _PasteDialogState extends State<_PasteDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(S.t('paste_title')),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        minLines: 4,
+        maxLines: 10,
+        keyboardType: TextInputType.multiline,
+        decoration: InputDecoration(
+          hintText: S.t('paste_hint'),
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(S.t('cancel')),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_ctrl.text),
+          child: Text(S.t('paste_analyze')),
+        ),
+      ],
     );
   }
 }

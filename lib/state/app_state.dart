@@ -1,5 +1,3 @@
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:uuid/uuid.dart';
@@ -56,7 +54,7 @@ class AppState extends ChangeNotifier {
       accounts = await repo.listAccounts();
       categories = await repo.listCategories();
       planned = await repo.listPlanned();
-      recent = await repo.listTx(limit: 200);
+      recent = await repo.listTx(limit: 200, review: false);
       pending = await repo.listTx(limit: 500, review: true);
       balance = await repo.balance();
       spentToday = await repo.spentBetween(start, end);
@@ -169,10 +167,11 @@ class AppState extends ChangeNotifier {
     await refresh();
   }
 
-  /// Importe les SMS Mobile Money. Retourne le nombre de transactions
-  /// importées, ou -1 si la lecture des SMS est impossible.
-  Future<int> importSms() async {
-    if (!await _sms.ensurePermission()) return -1;
+  /// Lit les SMS Mobile Money et renvoie ceux qui sont reconnus et pas encore
+  /// importés. Ne modifie RIEN en base. Renvoie null si la lecture des SMS
+  /// est impossible (permission refusée ou appareil non Android).
+  Future<List<ParsedSms>?> scanSms() async {
+    if (!await _sms.ensurePermission()) return null;
     final s = settings!;
     final last = s.lastSmsImport;
     final since = last != null
@@ -180,14 +179,58 @@ class AppState extends ChangeNotifier {
             .subtract(const Duration(days: 1))
         : DateTime.now().subtract(const Duration(days: 30));
     final messages = await _sms.readInbox(since: since);
-    final acc = accounts.firstWhere((a) => a.kind == 'mobile_money',
-        orElse: () => accounts.first);
 
-    var imported = 0;
+    final found = <ParsedSms>[];
+    final seen = <String>{};
     for (final m in messages) {
       final p =
           _parser!.parse(sender: m.sender, body: m.body, date: m.date);
       if (p == null || p.currency != s.homeCurrency) continue;
+      if (!seen.add(p.hash)) continue;
+      if (await repo.hasSmsHash(p.hash)) continue;
+      found.add(p);
+    }
+    found.sort((a, b) => b.date.compareTo(a.date));
+    return found;
+  }
+
+  /// Analyse du texte collé par l'utilisateur (un ou plusieurs SMS séparés
+  /// par une ligne vide). Sert surtout sur iPhone, où lire les SMS est
+  /// impossible. Ne modifie RIEN en base. La date est celle du collage.
+  Future<List<ParsedSms>> parsePasted(String text) async {
+    final s = settings!;
+    final now = DateTime.now();
+    final found = <ParsedSms>[];
+    final seen = <String>{};
+    for (final chunk in text.split(RegExp(r'\n\s*\n'))) {
+      final body = chunk.trim();
+      if (body.isEmpty) continue;
+      final p = _parser!.parse(
+        sender: '',
+        body: body,
+        date: now,
+        anySender: true,
+        // même texte collé deux fois = même empreinte = pas de doublon
+        hash: SmsParser.hashOf(
+            'colle', DateTime.fromMillisecondsSinceEpoch(0), body),
+      );
+      if (p == null || p.currency != s.homeCurrency) continue;
+      if (!seen.add(p.hash)) continue;
+      if (await repo.hasSmsHash(p.hash)) continue;
+      found.add(p);
+    }
+    return found;
+  }
+
+  /// Enregistre les SMS choisis dans l'aperçu, en « à valider » : ils ne
+  /// comptent pas dans le budget tant qu'ils ne sont pas validés.
+  /// Retourne le nombre de transactions ajoutées.
+  Future<int> importParsed(List<ParsedSms> items) async {
+    final s = settings!;
+    final acc = accounts.firstWhere((a) => a.kind == 'mobile_money',
+        orElse: () => accounts.first);
+    var imported = 0;
+    for (final p in items) {
       if (await repo.hasSmsHash(p.hash)) continue;
       await repo.insertTx(TxRec(
         id: _uuid.v4(),
@@ -196,7 +239,7 @@ class AppState extends ChangeNotifier {
         currency: p.currency,
         direction: p.direction,
         occurredAt: p.date,
-        note: p.carrier,
+        note: p.note,
         source: 'sms',
         smsHash: p.hash,
         needsReview: true,

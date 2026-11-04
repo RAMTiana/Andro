@@ -13,6 +13,9 @@ dependencies:
   provider: ^6.1.2
   uuid: ^4.4.0
   permission_handler: ^11.3.1
+  sqflite_common_ffi: ^2.4.5
+  sqflite_common_ffi_web: ^1.2.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

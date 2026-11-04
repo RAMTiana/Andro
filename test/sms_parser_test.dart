@@ -59,4 +59,13 @@ void main() {
     final p = parser.parse(sender: 'TestPay', body: body, date: date);
     expect(p!.body, body);
   });
+
+  test('texte collé : expéditeur inconnu accepté avec anySender', () {
+    const body = 'Vous avez envoye 5 000 Ar a 0321234567.';
+    expect(parser.parse(sender: '', body: body, date: date), isNull);
+    final p = parser.parse(
+        sender: '', body: body, date: date, anySender: true, hash: 'h1');
+    expect(p!.amount, 5000);
+    expect(p.hash, 'h1');
+  });
 }

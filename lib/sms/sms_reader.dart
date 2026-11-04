@@ -1,5 +1,5 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -15,7 +15,8 @@ class RawSms {
 class SmsReader {
   static const MethodChannel _channel = MethodChannel('budget_app/sms');
 
-  bool get supported => Platform.isAndroid;
+  bool get supported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   Future<bool> ensurePermission() async {
     if (!supported) return false;

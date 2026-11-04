@@ -105,9 +105,11 @@ class SmsParser {
     required String sender,
     required String body,
     required DateTime date,
+    bool anySender = false, // texte collé : l'expéditeur est inconnu
+    String? hash, // empreinte imposée (sinon calculée depuis le SMS)
   }) {
     for (final r in rules) {
-      if (!r.matchesSender(sender)) continue;
+      if (!anySender && !r.matchesSender(sender)) continue;
       final m = r.pattern.firstMatch(body);
       if (m == null || m.groupCount < 1) continue;
       var amount = r.parseAmount(m.group(1) ?? '');
@@ -126,7 +128,7 @@ class SmsParser {
             : '${r.carrier} · $label',
         currency: r.currency,
         date: date,
-        hash: hashOf(sender, date, body),
+        hash: hash ?? hashOf(sender, date, body),
         body: body,
       );
     }
