@@ -81,6 +81,21 @@ class S {
       'cat_salary': 'Salaire / Aide',
       'cat_business': 'Activité / Freelance',
       'cat_income_other': 'Autre revenu',
+      'currency_change': 'Changer de devise',
+      'current_currency': 'Devise actuelle',
+      'new_currency': 'Nouvelle devise',
+      'rate': 'Taux de change',
+      'rate_label': 'Taux : 1 {from} = ? {to}',
+      'rate_hint':
+          "Mets 1 pour garder les mêmes chiffres (si tu t'étais trompé de devise).",
+      'preview': 'Aperçu de ton solde',
+      'confirm_title': 'Convertir tous tes montants ?',
+      'confirm_body':
+          'Soldes, transactions, charges prévues et épargne seront convertis avec ce taux. Les arrondis peuvent créer de petites différences si tu reconvertis ensuite.',
+      'convert': 'Convertir',
+      'invalid_rate': 'Taux invalide.',
+      'same_currency': 'Choisis une devise différente.',
+      'currency_changed': 'Devise changée : {cur}',
     },
     'en': {
       'app_title': 'My Budget',
@@ -148,6 +163,21 @@ class S {
       'cat_salary': 'Salary / Support',
       'cat_business': 'Business / Freelance',
       'cat_income_other': 'Other income',
+      'currency_change': 'Change currency',
+      'current_currency': 'Current currency',
+      'new_currency': 'New currency',
+      'rate': 'Exchange rate',
+      'rate_label': 'Rate: 1 {from} = ? {to}',
+      'rate_hint':
+          'Enter 1 to keep the same numbers (if you picked the wrong currency).',
+      'preview': 'Balance preview',
+      'confirm_title': 'Convert all your amounts?',
+      'confirm_body':
+          'Balances, transactions, planned items and savings will be converted with this rate. Rounding may cause small differences if you convert back later.',
+      'convert': 'Convert',
+      'invalid_rate': 'Invalid rate.',
+      'same_currency': 'Pick a different currency.',
+      'currency_changed': 'Currency changed: {cur}',
     },
   };
 }

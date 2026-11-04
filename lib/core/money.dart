@@ -62,4 +62,11 @@ class Money {
     final fracValue = fracPadded.isEmpty ? 0 : int.parse(fracPadded);
     return int.parse(whole) * _pow10(exp) + fracValue;
   }
+
+  /// Convertit un montant (unités mineures) de [from] vers [to].
+  /// [rate] = combien de [to] valent 1 [from]. Rate 1 = mêmes chiffres.
+  static int convert(int minor, double rate, String from, String to) {
+    final shift = exponentOf(to) - exponentOf(from);
+    return (minor * rate * pow(10, shift)).round();
+  }
 }

@@ -49,4 +49,20 @@ void main() {
       expect(Money.format(999, 'USD'), '9,99\u00A0\$');
     });
   });
+
+  group('Conversion de devise', () {
+    test('MGA vers EUR avec un taux', () {
+      // 100 000 Ar à 0,0002 € l'Ariary = 20,00 €
+      expect(Money.convert(100000, 0.0002, 'MGA', 'EUR'), 2000);
+    });
+    test('EUR vers MGA avec un taux', () {
+      // 20,00 € à 5 000 Ar l'euro = 100 000 Ar
+      expect(Money.convert(2000, 5000, 'EUR', 'MGA'), 100000);
+    });
+    test('taux 1 = mêmes chiffres', () {
+      expect(Money.convert(100, 1, 'MGA', 'EUR'), 10000); // 100 Ar -> 100,00 €
+      expect(Money.convert(10000, 1, 'EUR', 'MGA'), 100);
+      expect(Money.convert(5000, 1, 'MGA', 'JPY'), 5000);
+    });
+  });
 }

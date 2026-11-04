@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sqflite/sqflite.dart';
 
 import 'models.dart';
@@ -116,4 +118,39 @@ class Repository {
         where: 'id = ?',
         whereArgs: [id],
       );
+
+  // ---- Changement de devise ----
+  /// Convertit tous les montants vers [newCurrency] dans une seule
+  /// transaction SQL (tout ou rien). [rate] = valeur de 1 ancienne devise.
+  Future<void> convertCurrency({
+    required String newCurrency,
+    required double rate,
+    required int oldExp,
+    required int newExp,
+  }) async {
+    final factor = rate * pow(10, newExp - oldExp);
+    final now = _now();
+    await db.transaction((txn) async {
+      await txn.rawUpdate(
+          'UPDATE accounts SET opening_balance = '
+          'CAST(ROUND(opening_balance * ?) AS INTEGER), '
+          'currency = ?, updated_at = ?',
+          [factor, newCurrency, now]);
+      await txn.rawUpdate(
+          'UPDATE transactions SET amount = '
+          'MAX(1, CAST(ROUND(amount * ?) AS INTEGER)), '
+          'currency = ?, updated_at = ?',
+          [factor, newCurrency, now]);
+      await txn.rawUpdate(
+          'UPDATE planned_items SET amount = '
+          'MAX(1, CAST(ROUND(amount * ?) AS INTEGER)), '
+          'currency = ?, updated_at = ?',
+          [factor, newCurrency, now]);
+      await txn.rawUpdate(
+          'UPDATE budget_settings SET savings_goal = '
+          'CAST(ROUND(savings_goal * ?) AS INTEGER), home_currency = ? '
+          'WHERE id = 1',
+          [factor, newCurrency]);
+    });
+  }
 }
