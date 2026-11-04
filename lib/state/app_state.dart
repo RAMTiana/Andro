@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:uuid/uuid.dart';
 
+import '../core/currencies.dart';
 import '../core/strings.dart';
 import '../data/db.dart';
 import '../data/models.dart';
@@ -142,6 +143,19 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteTx(String id) async {
     await repo.softDeleteTx(id);
+    await refresh();
+  }
+
+  Future<void> changeCurrency(String newCurrency, double rate) async {
+    final old = settings!.homeCurrency;
+    if (newCurrency == old) return;
+    await repo.convertCurrency(
+      newCurrency: newCurrency,
+      rate: rate,
+      oldExp: exponentOf(old),
+      newExp: exponentOf(newCurrency),
+    );
+    settings = await repo.loadSettings();
     await refresh();
   }
 
