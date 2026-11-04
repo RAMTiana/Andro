@@ -41,7 +41,14 @@ class S {
       'no_tx': "Aucune transaction pour l'instant.",
       'settings': 'Paramètres',
       'review': 'À valider',
-      'review_hint': 'Choisis une catégorie pour valider, ou supprime.',
+      'review_hint':
+          "Choisis une catégorie pour valider, ou supprime. Tant qu'elles ne sont pas validées, ces transactions ne comptent pas dans ton budget.",
+      'sms_preview': 'SMS détectés',
+      'sms_preview_hint':
+          "Décoche ceux que tu ne veux pas importer. Rien n'est ajouté avant ta confirmation.",
+      'select_all': 'Tout sélectionner',
+      'import_selected': 'Importer ({n})',
+      'import_none': 'Aucun nouveau SMS détecté.',
       'validate': 'Valider',
       'import_sms': 'Importer les SMS Mobile Money',
       'import_done': '{n} transaction(s) importée(s)',
@@ -123,7 +130,14 @@ class S {
       'no_tx': 'No transactions yet.',
       'settings': 'Settings',
       'review': 'To review',
-      'review_hint': 'Pick a category to confirm, or delete.',
+      'review_hint':
+          "Pick a category to confirm, or delete. Until confirmed, these transactions don't count in your budget.",
+      'sms_preview': 'Detected SMS',
+      'sms_preview_hint':
+          'Uncheck the ones you do not want to import. Nothing is added until you confirm.',
+      'select_all': 'Select all',
+      'import_selected': 'Import ({n})',
+      'import_none': 'No new SMS detected.',
       'validate': 'Confirm',
       'import_sms': 'Import Mobile Money SMS',
       'import_done': '{n} transaction(s) imported',

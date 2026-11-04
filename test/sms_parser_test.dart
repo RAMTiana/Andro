@@ -53,4 +53,10 @@ void main() {
     expect(a, SmsParser.hashOf('TestPay', date, 'abc'));
     expect(a, isNot(SmsParser.hashOf('TestPay', date, 'abd')));
   });
+
+  test('garde le texte du SMS pour l\'aperçu', () {
+    const body = 'Vous avez recu 10 000 Ar de 0341234567.';
+    final p = parser.parse(sender: 'TestPay', body: body, date: date);
+    expect(p!.body, body);
+  });
 }

@@ -40,6 +40,7 @@ class ParsedSms {
   final String currency;
   final DateTime date;
   final String hash;
+  final String body; // texte du SMS, pour l'aperçu
 
   const ParsedSms({
     required this.amount,
@@ -48,6 +49,7 @@ class ParsedSms {
     required this.currency,
     required this.date,
     required this.hash,
+    this.body = '',
   });
 }
 
@@ -92,6 +94,7 @@ class SmsParser {
         currency: r.currency,
         date: date,
         hash: hashOf(sender, date, body),
+        body: body,
       );
     }
     return null;

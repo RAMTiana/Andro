@@ -6,18 +6,32 @@ import '../core/money.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
 import '../state/app_state.dart';
+import 'sms_preview_screen.dart';
 
 /// Transactions importées par SMS, à valider en 1 tap.
 class ReviewScreen extends StatelessWidget {
   const ReviewScreen({super.key});
 
   Future<void> _import(BuildContext context, AppState st) async {
-    final n = await st.importSms();
+    final found = await st.scanSms();
     if (!context.mounted) return;
-    final msg =
-        n < 0 ? S.t('sms_denied') : S.tr('import_done', {'n': '$n'});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (found == null) {
+      _snack(context, S.t('sms_denied'));
+      return;
+    }
+    if (found.isEmpty) {
+      _snack(context, S.t('import_none'));
+      return;
+    }
+    // Rien n'est enregistré avant la confirmation dans l'aperçu.
+    final n = await Navigator.of(context).push<int>(
+        MaterialPageRoute(builder: (_) => SmsPreviewScreen(items: found)));
+    if (!context.mounted || n == null) return;
+    _snack(context, S.tr('import_done', {'n': '$n'}));
   }
+
+  void _snack(BuildContext context, String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
