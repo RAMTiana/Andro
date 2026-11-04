@@ -21,17 +21,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   late String _cur = _guessCurrency();
   String _error = '';
 
-  static String _guessCurrency() {
-    const byCountry = {
-      'MG': 'MGA',
-      'FR': 'EUR',
-      'US': 'USD',
-      'GB': 'GBP',
-      'KE': 'KES',
-      'NG': 'NGN',
-    };
-    return byCountry[PlatformDispatcher.instance.locale.countryCode] ?? 'USD';
-  }
+  static String _guessCurrency() =>
+      currencyForCountry(PlatformDispatcher.instance.locale.countryCode) ??
+      'USD';
 
   @override
   void dispose() {
@@ -80,9 +72,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               label: Text(S.t('currency')),
               initialSelection: _cur,
               expandedInsets: EdgeInsets.zero,
+              enableFilter: true,
+              requestFocusOnTap: true,
+              menuHeight: 320,
               dropdownMenuEntries: [
                 for (final c in kSupportedCurrencies)
-                  DropdownMenuEntry(value: c, label: '$c (${symbolOf(c)})'),
+                  DropdownMenuEntry(
+                      value: c, label: currencyLabel(c, S.lang)),
               ],
               onSelected: (v) => setState(() => _cur = v ?? _cur),
             ),

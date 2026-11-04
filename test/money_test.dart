@@ -33,4 +33,20 @@ void main() {
       expect(Money.format(-3000, 'MGA'), '-3\u00A0000\u00A0Ar');
     });
   });
+
+  group('Autres devises', () {
+    test('JPY sans décimales', () {
+      expect(Money.parse('1 500', 'JPY'), 1500);
+      expect(Money.format(1500, 'JPY'), '1\u00A0500\u00A0¥');
+    });
+    test('KWD / TND avec 3 décimales', () {
+      expect(Money.parse('12,500', 'KWD'), 12500);
+      expect(Money.parse('12.5', 'KWD'), 12500);
+      expect(Money.format(12500, 'KWD'), '12,500\u00A0KD');
+      expect(Money.format(5, 'TND'), '0,005\u00A0DT');
+    });
+    test('USD', () {
+      expect(Money.format(999, 'USD'), '9,99\u00A0\$');
+    });
+  });
 }
