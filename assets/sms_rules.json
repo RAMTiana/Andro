@@ -1,0 +1,18 @@
+{
+  "_comment": "EXEMPLES A ADAPTER : copie quelques vrais SMS de tes operateurs, puis ajuste 'senders' (nom de l'expediteur) et 'pattern' (le groupe 1 = le montant).",
+  "version": 1,
+  "rules": [
+    {"carrier": "MVola", "senders": ["MVola"], "direction": "out", "currency": "MGA",
+     "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "MVola", "senders": ["MVola"], "direction": "in", "currency": "MGA",
+     "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Orange Money", "senders": ["OrangeMoney", "Orange Money"], "direction": "out", "currency": "MGA",
+     "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Orange Money", "senders": ["OrangeMoney", "Orange Money"], "direction": "in", "currency": "MGA",
+     "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "out", "currency": "MGA",
+     "pattern": "(?:envoy|transf|pay|retrait|achat)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"},
+    {"carrier": "Airtel Money", "senders": ["Airtel Money", "AirtelMoney"], "direction": "in", "currency": "MGA",
+     "pattern": "(?:re[cç]u|d[eé]p[oô]t)[^0-9]{0,60}?([0-9][0-9\\s.,]*)\\s*Ar"}
+  ]
+}

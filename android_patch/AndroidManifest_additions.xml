@@ -1,0 +1,3 @@
+<!-- Dans android/app/src/main/AndroidManifest.xml,
+     ajoute cette ligne AVANT la balise <application> : -->
+<uses-permission android:name="android.permission.READ_SMS"/>
